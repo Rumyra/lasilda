@@ -1,0 +1,36 @@
+{
+  "name": "lasilda",
+  "version": "1.0.0",
+  "description": "Software to control lasers",
+  "main": "server.js",
+  "scripts": {
+    "start": "nodemon server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rumyra/lasilda.git"
+  },
+  "keywords": [
+    "lasers",
+    "audio",
+    "visuals",
+    "control"
+  ],
+  "author": "Ruth John and Gordon Williams",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Rumyra/lasilda/issues"
+  },
+  "homepage": "https://github.com/Rumyra/lasilda#readme",
+  "dependencies": {
+    "body-parser": "^1.15.2",
+    "dotenv": "^2.0.0",
+    "express": "^4.14.0",
+    "htmling": "0.0.7",
+    "pusher": "^1.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.11.0"
+  }
+}
