@@ -1,76 +1,27 @@
 <html>
 <body>
 
-  <canvas id="canvas" width="640" height="480" style="border:1px solid #000000;">
-  </canvas>
-
+<div id="screen"></div>
 <script src="../public/scripts/library.js"></script>
 <script src="../public/scripts/preview.js"></script>
+<script src="../public/scripts/ilda.js"></script>
+<script src="../public/scripts/screen.js"></script>
 
   <script>
-  window.AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!window.AudioContext) {
-    console.log("No window.AudioContext - serial_audio disabled");
-  }
-  navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
-  if (!navigator.getUserMedia) {
-    console.log("No navigator.getUserMedia - serial_audio disabled");
-  }
 
-  var userMediaStream;
-  var context = new AudioContext();
-  var inputNode = context.createScriptProcessor(1024, 2/*in*/, 2/*out*/);
-  var pattern = [[0,0]];
-  window.dontGarbageCollectMePlease = inputNode;
-  //context.sampleRate
-var pos = 0;
+
+
+
+
 
 /*var n = 0|(i*pattern.length/dx.length);
 dx[i] = pattern[n][0];
 dy[i] = pattern[n][1];*/
 
-var handler = library[library.length-1].handler();
+/*
+var pattern = [[0,0]];
 
-inputNode.onaudioprocess = function(e) {
-  var il = e.inputBuffer.getChannelData(0);
-  var ir = e.inputBuffer.getChannelData(1);
-  var dx = e.outputBuffer.getChannelData(0);
-  var dy = e.outputBuffer.getChannelData(1);
-  handler({l:il, r:ir, x:dx, y:dy});
-  setTimeout(function() {
-    preview(c, dx, dy);
-  }, 1);
-}
-
-function start() {
-  navigator.getUserMedia({
-    video:false,
-    audio:{
-      mandatory:[],
-      optional:[{sampleRate:44100}]
-    }
-  }, function(stream) {
-    userMediaStream = stream;
-    var inputStream = context.createMediaStreamSource(stream);
-    inputStream.connect(inputNode);
-    inputNode.connect(context.destination);
-  }, function(e) {
-    console.log('serial_audio: getUserMedia error', e);
-  });
-}
-
-start();
-
-var c = document.getElementById("canvas");
-
-
-c.addEventListener("mousedown", function(e) {
-  var r = 0|(Math.random()*library.length);
-  if (r>=library.length) r=library.length-1;
-  handler = library[r].handler();
-});
-
-/*var lastX, lastY;
+var lastX, lastY;
 c.addEventListener("mousedown", function(e) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   pattern = [];
