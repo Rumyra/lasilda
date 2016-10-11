@@ -1,16 +1,10 @@
 <html>
   <head>
-<!-- 2016 Gordon Williams, gw@pur3.co.uk
-Any copyright is dedicated to the Public Domain.
-http://creativecommons.org/publicdomain/zero/1.0/
--->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=320, initial-scale=1">
-    <title>Online Heart Rate Monitor</title>
   </head>
   <body>
     <video id="v" width="100" height="100" style="display:none"></video>
     <canvas id="c" width="200" height="100"></canvas>
+    <canvas id="c2" width="100" height="100"></canvas>
 
   <script>
 var video, width, height, context;
@@ -67,22 +61,144 @@ navigator.mediaDevices.enumerateDevices().then(function(devices) {
   }
   addEventListener("DOMContentLoaded", initialize);
 
+
+  function bmpToLines(w,h,data) {
+    var lastLine, curLine = [];
+    var lines = [];
+
+    function addLine(x,y,newx) {
+      var l = lastLine[x];
+      if (!l) {
+        l = [];
+        lines.push(l);
+      }
+      l.push([newx,y]);
+      curLine[newx] = l;
+    }
+    function horizLine(x,y) {
+      var l = curLine[x];
+      if (!l) l = lastLine[x];
+      if (!l) {
+        l = [];
+        lines.push(l);
+        l.push([x,y]);
+      }
+      l.push([x+1,y]);
+      curLine[x] = undefined;
+      curLine[x+1] = l;
+    }
+
+    for (var y=0;y<h-1;y++) {
+      lastLine = curLine;
+      curLine = [];
+      for (var x=0;x<w-1;x++) {
+        var i = x+y*w;
+        var b = (data[i]?1:0)|(data[i+1]?2:0)|
+                (data[i+w]?4:0)|(data[i+1+w]?8:0);
+        // 12
+        // 48
+        switch (b) {
+          case 0: break; // all black
+          case 1: addLine(x,y,x-1); break;
+          case 2: addLine(x,y,x+1); break;
+          case 3: horizLine(x,y); break; // horiz line
+          case 4: addLine(x,y,x+1); break;
+          case 5: addLine(x,y,x); break;
+          case 6: curLine[x]=lastLine[x];
+                  curLine[x+1]=lastLine[x+1]; break; // angled line
+          case 7: addLine(x,y,x-1); break;
+          case 8: addLine(x,y,x-1); break;
+          case 9: curLine[x]=lastLine[x];
+                  curLine[x+1]=lastLine[x+1]; break; // angled line
+          case 10: addLine(x,y,x); break;
+          case 11: addLine(x,y,x+1); break;
+          case 12: horizLine(x,y); break; // horiz line
+          case 13: addLine(x,y,x+1); break;
+          case 14: addLine(x,y,x-1); break;
+          case 15: break; // all white
+        }
+      }
+    }
+
+    function distanceSqr(a,b) {
+      return (a[0]-b[0])*(a[0]-b[0]) + (a[1]-b[1])*(a[1]-b[1]);
+    }
+    // join line start positions
+    for (var i=0;i<lines.length;i++) {
+      if (i>0) {
+        // if 2 arrays are close, connect them
+        if (distanceSqr(lines[i-1][0],lines[i][0]) < 16) {
+          var l = lines[i-1].reverse().concat(lines[i]);
+          lines.splice(i-1,2,l);
+          i--;
+        } else if (distanceSqr(lines[i-1][lines[i-1].length-1],lines[i][0]) < 16) {
+          var l = lines[i-1].concat(lines[i]);
+          lines.splice(i-1,2,l);
+          i--;
+        }
+      }
+    }
+    // sort by x, then y end value
+    lines.sort(function(a,b) { return a[a.length-1][0] - b[b.length-1][0]; });
+    lines.sort(function(a,b) { return a[a.length-1][1] - b[b.length-1][1]; });
+    // join line ends, if they match
+    for (var i=0;i<lines.length;i++) {
+      if (i>0) {
+        var la = lines[i-1];
+        var lb = lines[i];
+        var a = la[la.length-1];
+        var b = lb[lb.length-1];
+        // if 2 arrays are close, connect them
+        if (distanceSqr(a,b) < 16) {
+          var l = lines[i-1].concat(lines[i].reverse());
+          lines.splice(i-1,2,l);
+          i--;
+        }
+      }
+    }
+
+    return lines;
+  }
+
   function handleFrame(data) {
     var len = data.length;
-    var d = new Uint8ClampedArray(len/4);
+    var d = new Uint8Array(len/4);
+    var e = new Uint8Array(len/4);
     // grab data
     for (var i = 0, j = 0; j < len; i++, j += 4) {
       d[i] = (data[j] + data[j+1] + data[j+2])/3;
+
     }
-    // blur
-    var width = 100;
-    for (var i = 0; i < d.length; i++) {
-      // /d[i] = (data[j] + data[j+1] + data[j+2])/3;
-      d[i] = d[i]>200 ? 255 : 0;
+    var w = 100; // width
+    for (var i = w; i < d.length-w; i++) {
+      // blur
+      var b = (d[i-(w+1)]+d[i-w]*2+d[i-(w-1)]+
+               d[i-1]*2+d[i]*4+d[i+1]*2+
+               d[i-(w+1)]+d[i-w]*2+d[i-(w-1)])/16;
+      // thresh
+      e[i] = b>160 ? 255 : 0;
     }
+    //pad top and bottom
+    for (var i=0;i<w;i++) {
+      e[i] = e[i+w];
+      e[e.length-i] = e[e.length - (i+w)];
+    }
+    var lines = bmpToLines(w,w,e);
+    var canvas = document.getElementById("c2");
+    var ctx = canvas.getContext("2d");
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    lines.forEach(function(l, lidx) {
+      ctx.beginPath();
+      l.forEach(function(p,i) {
+        if (i==0) ctx.moveTo(p[0],p[1]);
+        else ctx.lineTo(p[0],p[1]);
+      });
+      ctx.strokeStyle = "hsl("+(lidx*10)+", 100%, 50%)";
+      ctx.stroke();
+    });
     // put preview back
     for (var i = 0, j = 0; j < len; i++, j += 4) {
-      var s = d[i];
+      var s = e[i];
       data[j] = s;
       data[j+1] = s;
       data[j+2] = s;
