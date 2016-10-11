@@ -1,0 +1,93 @@
+<html>
+  <head>
+<!-- 2016 Gordon Williams, gw@pur3.co.uk
+Any copyright is dedicated to the Public Domain.
+http://creativecommons.org/publicdomain/zero/1.0/
+-->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=320, initial-scale=1">
+    <title>Online Heart Rate Monitor</title>
+  </head>
+  <body>
+    <video id="v" width="100" height="100" style="display:none"></video>
+    <canvas id="c" width="200" height="100"></canvas>
+
+  <script>
+var video, width, height, context;
+var hist = [];
+navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia;
+var constraints = {video: true, audio:false};
+function initialize() {
+navigator.mediaDevices.enumerateDevices().then(function(devices) {
+  devices.forEach(function(device) {
+    console.log(device.kind + ": " + device.label +
+                " id = " + device.deviceId/*, JSON.stringify(device,null,2)*/);
+    if (device.kind=="videoinput" /*&& constraints.video===true*/)
+      constraints.video = { optional: [{sourceId: device.deviceId}, { fillLightMode: "on" }] };
+  });
+  initialize2();
+}).catch(function(err) {
+  console.log(err.name + ": " + err.message);
+});
+}
+  function initialize2() {
+    // The source video.
+    video = document.getElementById("v");
+    width = video.width;
+    height = video.height;
+    // The target canvas.
+    var canvas = document.getElementById("c");
+    context = canvas.getContext("2d");
+    // Get the webcam's stream.
+    navigator.getUserMedia(constraints, startStream, function () {});
+  }
+  function startStream(stream) {
+    video.src = URL.createObjectURL(stream);
+    video.play();
+    // Ready! Let's start drawing.
+    requestAnimationFrame(draw);
+  }
+  function draw() {
+    var frame = readFrame();
+    if (frame) {
+      handleFrame(frame.data);
+      context.putImageData(frame, 100, 0);
+    }
+    // Wait for the next frame.
+    requestAnimationFrame(draw);
+  }
+  function readFrame() {
+    try {
+      context.drawImage(video, 0, 0, width, height);
+    } catch (e) {
+      // The video may not be ready, yet.
+      return null;
+    }
+    return context.getImageData(0, 0, width, height);
+  }
+  addEventListener("DOMContentLoaded", initialize);
+
+  function handleFrame(data) {
+    var len = data.length;
+    var d = new Uint8ClampedArray(len/4);
+    // grab data
+    for (var i = 0, j = 0; j < len; i++, j += 4) {
+      d[i] = (data[j] + data[j+1] + data[j+2])/3;
+    }
+    // blur
+    var width = 100;
+    for (var i = 0; i < d.length; i++) {
+      // /d[i] = (data[j] + data[j+1] + data[j+2])/3;
+      d[i] = d[i]>200 ? 255 : 0;
+    }
+    // put preview back
+    for (var i = 0, j = 0; j < len; i++, j += 4) {
+      var s = d[i];
+      data[j] = s;
+      data[j+1] = s;
+      data[j+2] = s;
+    }
+  }
+  </script>
+  </body>
+</html>
